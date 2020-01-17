@@ -45,7 +45,7 @@ A Provly request might look like this:
 
 This query will create an AST (many nodes have been omitted for clarity):
 
-.image abstract-graphs/ast.svg
+.image abstract-graphs/ast.png
 
 With this abstract syntax tree, a single new AQL query can be generated using basic tree algorithms. For each field node in the query, an AQL let statement is generated and added to the return statement. Additionally, filter statements are generated for each filter attached to that field. For each child feature that represents a relationship, a new let statement is generated.
 
