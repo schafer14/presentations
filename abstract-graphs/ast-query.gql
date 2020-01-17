@@ -1,0 +1,10 @@
+query {
+  activities (geoWithin: {n: 400, lng: 148.68353605270386, lat: -34.47067123281642}) {
+    name
+    kind
+    generated {
+      name
+      kind
+    }
+  }
+}

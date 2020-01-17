@@ -1,0 +1,29 @@
+query($bound: WithinFilter!) {
+  experiment: activities (geoWithin: $bound) {
+    treatmentGroups: used (kind: "urn:prov:Collection", annotations: {name: "serenity/type", value: "observationalUnits"}) {
+      id
+      name
+      observations: usedBy (annotations: {name: "serenity/type", value: "observation"}) {
+        id
+        name
+        startTime
+        endTime
+        observer: wasAssociatedWith (kind: "urn:provly:Person") {
+          id
+          name
+          onBehalfOf: actedOnBehalfOf (kind: "urn:provly:Org") {
+            id
+            name
+          }
+        }
+        value: generated (annotations: {name: "serenity/type", value: "observation"}) {
+          id
+          annotations {
+            name
+            value
+          }
+        }
+      }
+    }
+  }
+}

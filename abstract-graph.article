@@ -1,0 +1,76 @@
+Building Absrtact Software with Graph Databases
+
+Banner Schafer
+Research Engineer, CSIRO
+banner.schafer@csiro.au
+
+
+* Introduction
+
+There is a tremendous amount of time spent on building software, and an additional expectation of integration between applications, but there is minimal effort spent building integrations. Building software that makes integration of arbitrary applications efficient is imperative to satisfy the demands of application integration. This is difficult. Quite often, integrations are required between pieces of software that operate in different domains or use separate ontologies. At this point, each piece of software must adopt the operational logic of the other, which increase development effort exponetially. 
+
+A potential solution to this problem is to define universal API that can connect to arbitrary software. Ensuring each application only needs to create one integration yet gain access to information from any system on the network. While there are many standards or ontologies for this type of universal API's, there are few practical implementations. The lack of implementations is caused in part by the difficulty in designing efficient queries for an unknown domain. 
+
+This article explores one such attempt to build an integration point and the technical novelty that leads to a reproducible method for creating such applications.
+
+* Provenance
+
+The W3C [[https://www.w3.org/TR/prov-overview/][PROV]] specification defines relationships between entities and activities that allows tracking provenance. [[https://gitlab.com/csiro-crop-informatics/provly][Provly]] is a loose implementation of PROV. The goal of Provly is to allow applications from distinct domains to discover and communicate about entities. PROV defines roughly fifteen relationships between activities, agents and entities. It was quickly discovered when building Provly that each application would need to expand relationships in individualised ways while querying.
+
+In order to ensure the usefulness of Provly, the following requirements were made:
+
+- Users define what relationships are expanded in a query and what data is returned
+- Only one request to the database may be made per query
+- The query must resolve reasonably quickly 
+
+* Technology
+
+The critical technological choices that facilitate the fulfilment of these requirements are using a graph database and [[https://graphql.org][GraphQL]]. 
+
+A [[https://en.wikipedia.org/wiki/Graph_database][graph database]] is a database that stores data in a collection of nodes and edges. Graph databases tend to place extreme emphasis on expanding relationships between nodes (through edges) exceptionally quickly. Ensuring Provly will be able to expand relationships of arbitrary queries quickly in opposition to SQL, which incurs a high price per join statement.  
+
+In an early iteration of Provly, a custom query language was defined and implemented to allow users to define queries. This query language worked well; however, GraphQL was adopted because it provided a more ubiquitous option and excellent tooling. GraphQL is a query language that allows users to define what information is returned by the query and what relationships are expanded. This proved essential for allowing Provly to be used in any number of domains. 
+
+These two tools lay the foundation for Provly with one remaining difficulty being mapping a GraphQL query to an efficient graph database query.
+
+The rest of the decisions for the tech stack were less relevant to achieving success and made based on the author's familiarity with them. The programming language used was [[https://golang.org][Go]] using [[https://github.com/ardanlabs/service][ardanlabs']] example services as a starting point. The specific graph database used was [[https://www.arangodb.com][ArangoDB]]. Despite the somewhat arbitrarily choosing the tech stack,  the author strongly endorses these technologies and recommends them in the absence of a good reason not to use them.  
+
+* Approach
+
+The approach that proved to be most successful was generating a query based on an abstract syntax tree generated from the GraphQL query. This is a departure from traditional GraphQL usage where each GraphQL type has a specific resolver. Generating a query from the GraphQL AST ensures exactly one database query will be made per request. It also ensures the Arango indexes and graph technology can be used to ensure the query runs efficiently.
+
+A Provly request might look like this:
+
+.code abstract-graphs/ast-query.gql
+
+This query will create an AST (many nodes have been omitted for clarity):
+
+.image abstract-graphs/ast.svg
+
+With this abstract syntax tree, a single new AQL query can be generated using basic tree algorithms. For each field node in the query, an AQL let statement is generated and added to the return statement. Additionally, filter statements are generated for each filter attached to that field. For each child feature that represents a relationship, a new let statement is generated.
+
+This results in a single (albeit large) AQL query. 
+
+* In Practice
+
+Provly uses these techniques effectively to empower developers of downstream applications to ask more probing questions of their data. It also creates a minimal effort discovery and integration point. Applications connect to Provly and are able to discover entities and activities without pooling information from a number of different services. Additionally, it becomes easy to discover new software that has information about the same entities.
+
+Provly is currently used to track the provenance of wheat phenotyping experiments and observations associated with them. A number of different applications collect different information about experiments and are able to map those observations against a universally understood identity for observational units. Then a provenance of that observational unit is built up, and questions can be asked about the history of observational units and activities that effected them. The total result is that each application gains a deeper understanding of what the entities they are observing and are able to ask a more pointed question about cause and effect. 
+
+Here is one such query that has previously proven difficult.
+
+.code abstract-graphs/example-1.gql
+
+This query
+
+- Fetches all experiments within a geographic bound
+- Fetches groups of observational units for each experiment
+- Returns all observations and the person and organisation responsible for making them
+
+Using a graph database also allows for the use of graph algorithms to query the connectedness of two items efficiently. For example, efficiently determining if an activity in which pesticides were sprayed affected a particular observation is trivial even though there are many nodes between the observation and the spray activity.
+
+* What is Next
+
+After seeing the value of this approach in practice, the author thoroughly believes there is abundant opportunity for the development of innovative applications that previously would not have been tractable. Even so, libraries need to be created to lower the difficulty of generating AQL from an AST. Seeing as this is a departure from traditional GraphQL patterns: there must be a library that parses GraphQL into an easily consumable AST. After this, an ecosystem of supporting libraries will be a simple task that will yield powerful results.
+
+There are several applications that this technique enables. The first is a database-backed type system. Which would facilitate a new type of application where the user is not only in control of the data they collect but also the ontology they use. Additionally, building up ontologies (similar to Provly) using this approach is a simple task with remarkable potential. A specific application is building software based on an ontology defining the research process, which would allow the mapping of results of experiments across research papers and allow better collaboration amongst researchers in the scientific community.
