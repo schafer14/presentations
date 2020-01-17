@@ -3,8 +3,8 @@ service: presentations
 
 handlers:
 - url: /favicon.ico
-  static_files: /favicon.ico
-  upload: /favicon.ico
+  static_files: static/favicon.ico
+  upload: statid/favicon.ico
 - url: /static
   static_dir: static
 - url: /.*
